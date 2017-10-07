@@ -1,0 +1,268 @@
+---
+title: "Untitled"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+a<-read.table("C:\\Users\\jiewei feng\\Desktop\\R\\data1.txt",header =TRUE,na.strings =".")
+
+```
+
+```{r}
+
+mapminmaxDirect<-function(xData, minNum , maxNum)
+{
+  if(!is.matrix(xData))
+  {
+    stop('error input current data')
+  }
+  
+  N<-nrow(xData)
+  
+ 
+  maxX <- matrix(apply(xData,2,max),nrow = 1)
+  
+  minX <- matrix(apply(xData,2,min),nrow = 1)
+  
+ 
+  maxXMat <- matrix(rep(maxX , N),nrow = N ,byrow = TRUE)
+  minXMat <- matrix(rep(minX , N),nrow  = N , byrow = TRUE)
+  
+
+  xTransform <- (maxNum - minNum)/(maxXMat - minXMat)*(xData - minXMat)+
+    minNum
+  result<-list()
+  
+  
+  
+  result$maxNum<-maxNum
+  result$minNum <- minNum
+  result$xTransform <- xTransform
+  result$minX<-minX
+  result$maxX <- maxX
+  
+  return(result)
+  
+}
+```
+
+```{r}
+mapminmaxReverse<-function(xData , modelMapminmax)
+{
+  if(!is.list(modelMapminmax))
+  {
+    stop('error input data')
+  }
+  
+  if (!setequal(c("maxNum","minNum","xTransform","minX","maxX" ),
+               names(modelMapminmax)))
+  {
+    stop('error input data list')
+  }
+  
+  N <- nrow(xData)
+  
+  maxX<-modelMapminmax$maxX
+  minX<-modelMapminmax$minX
+  maxNum<-modelMapminmax$maxNum
+  minNum<-modelMapminmax$minNum
+  
+  maxXMat <- matrix(rep(maxX , N),nrow = N ,byrow = TRUE)
+  minXMat <- matrix(rep(minX , N),nrow  = N , byrow = TRUE)
+  
+  preX<-(xData - minNum)/(maxNum - minNum)*(maxXMat - minXMat)+minXMat
+  return(preX)
+   
+  
+}
+
+
+
+mapminmaxPre<-function(xData , modelMapminmax)
+{
+  if(!is.list(modelMapminmax))
+  {
+    stop('error input data')
+  }
+  
+  if (!setequal(c("maxNum","minNum","xTransform","minX","maxX" ),
+                names(modelMapminmax)))
+  {
+    stop('error input data list')
+  }
+  
+  maxX<-modelMapminmax$maxX
+  minX<-modelMapminmax$minX
+  maxNum<-modelMapminmax$maxNum
+  minNum<-modelMapminmax$minNum
+  
+  N<-nrow(xData)
+  
+  maxXMat <- matrix(rep(maxX , N),nrow = N ,byrow = TRUE)
+  minXMat <- matrix(rep(minX , N),nrow  = N , byrow = TRUE)
+  
+  
+  xNew <- (maxNum - minNum)/(maxXMat - minXMat)*(xData - minXMat)+
+    minNum
+  return(xNew)
+  
+}
+
+
+
+```
+
+```{r}
+
+pnn<-function(xData , classX , testData ,Sigma)
+{
+  if(!is.matrix(xData) || !is.matrix(classX) || !is.matrix(testData))
+  {
+    stop('error input current data')
+  }
+  
+  if(ncol(xData)!=ncol(testData))
+  {
+    stop('error input data')
+  }
+  
+  nxData<-nrow(xData)
+  ntestData<-nrow(testData)
+  
+  disMatrix<-matrix(0,ntestData , nxData)
+  
+  
+  
+  minNum <-(-1)
+  maxNum <- 1
+  
+  result<-mapminmaxDirect(xData ,minNum , maxNum )
+  xNewData <- result$xTransform
+  testNewData<-mapminmaxPre(testData , result)
+  result
+  xNewData
+  testNewData
+ 
+  for (i in c(1:ntestData))
+  {
+    oneTest<-testNewData[i,,drop = FALSE]
+    oneTestMat <- matrix(rep(oneTest , nxData),nrow = nxData , byrow = TRUE)
+   
+    disMatrix[i,]<-sqrt(apply((oneTestMat - xNewData)^2,1,sum))
+    
+  }
+  
+  probMatrix<-exp(-disMatrix/(2*Sigma^2))
+  
+  totalClass <-sort(unique(classX)) 
+  
+  lastProbMatrix<-matrix(0,ntestData , length(totalClass))
+  
+  for (i in c(1:ntestData))
+  {
+    pro<-probMatrix[i,,drop = FALSE]
+    for (j  in c(1:length(totalClass)))
+    {
+      ijIndex<-which(classX == totalClass[j])
+      lastProbMatrix[i,j]<-sum(pro[ijIndex])
+    }
+    
+  }
+  
+  
+  pos<-lastProbMatrix/rowSums(lastProbMatrix)
+  return(pos)
+  
+}
+
+```
+
+
+```{r}
+Sigma<-1
+
+xData1 <-matrix(runif(10000,0,1),ncol = 2)
+xData2<-matrix(runif(10000,10,11),ncol = 2)
+xData3 <-matrix(runif(10000,20,21),ncol = 2)
+xData<-rbind(xData1,xData2,xData3)
+
+classX<-rbind(matrix(1,nrow = 5000),matrix(2,nrow = 5000),
+              matrix(3,nrow = 5000))
+testData1 <-matrix(runif(10,0,1),ncol = 2)
+testData2<-matrix(runif(10,10,11),ncol = 2)
+testData3 <-matrix(runif(10,20,21),ncol = 2)
+testData<-rbind(testData3,testData2,testData1)
+pnn(xData , classX , testData ,Sigma)
+
+
+```
+
+```{r}
+b<-matrix(unlist(a),1721,116)
+mode(b)
+d<-b[,c(2:115)]
+c<-as.data.frame(colSums(d*d))
+c1<-as.data.frame(c(1:114))
+c2<-as.data.frame(c(c,c1))
+library(dplyr)
+c3<-filter(c2,c2[,1]==0)
+b1<-b[,-(c3[,2]+1)]
+
+```
+
+```{r}
+xData<-b1[c(1:1720),c(2:114)]
+classX<-matrix(b1[c(1:1720),c(115)])
+testData<-b1[c(1:100),c(2:114)]*0.5
+mode(xData)
+mode(classX)
+mode(testData)
+pnn(xData , classX , testData ,Sigma)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
